@@ -15,7 +15,6 @@ queue_t *q_new()
     if (!(q = malloc(sizeof(queue_t)))) {
         return NULL;
     }
-
     *q = (queue_t){
         .head = NULL,
         .tail = NULL,
@@ -24,13 +23,20 @@ queue_t *q_new()
     return q;
 }
 
+void free_node(list_ele_t *n)
+{
+    free(n->value);
+    free(n);
+}
+
 /* Free all storage used by queue */
 void q_free(queue_t *q)
 {
+    if (!q)
+        return;
     for (list_ele_t *cur = q->head; cur;) {
         list_ele_t *tmp = cur->next;
-        free(cur->value);
-        free(cur);
+        free_node(cur);
         cur = tmp;
     }
     free(q);
@@ -49,19 +55,21 @@ bool q_insert_head(queue_t *q, char *s)
         return false;
 
     list_ele_t *newh;
-    if (!(newh = malloc(sizeof(list_ele_t)))) {
+    if (!(newh = malloc(sizeof(list_ele_t))))
         return false;
-    }
 
-    size_t size = strlen(s);
-    if (!(newh->value = malloc(sizeof(char) * (size + 1)))) {
+    size_t len = strlen(s);
+    if (!(newh->value = malloc(sizeof(char) * (len + 1)))) {
         free(newh);
         return false;
     }
-    strncpy(newh->value, s, size);
+    strncpy(newh->value, s, len);
+    newh->value[len] = '\0';
 
     newh->next = q->head;
     q->head = newh;
+    if (!(q->tail))
+        q->tail = newh;
     ++(q->size);
     return true;
 }
@@ -75,40 +83,51 @@ bool q_insert_head(queue_t *q, char *s)
  */
 bool q_insert_tail(queue_t *q, char *s)
 {
-    if (!q) {
+    if (!q)
         return false;
-    }
+
     list_ele_t *newt;
-    if (!(newt = malloc(sizeof(list_ele_t)))) {
+    if (!(newt = malloc(sizeof(list_ele_t))))
         return false;
-    }
-    size_t size = strlen(s);
-    if (!(newt->value = malloc(sizeof(char) * (size + 1)))) {
+
+    size_t len = strlen(s);
+    if (!(newt->value = malloc(sizeof(char) * (len + 1)))) {
         free(newt);
         return false;
     }
-    strncpy(newt->value, s, size);
+    strncpy(newt->value, s, len);
+    newt->value[len] = '\0';
 
-    q->tail->next = newt;
+    newt->next = NULL;
+    if (q->tail)
+        q->tail->next = newt;
+    else
+        q->head = newt;
     q->tail = newt;
     ++(q->size);
     return true;
 }
-
 /*
  * Attempt to remove element from head of queue.
  * Return true if successful.
  * Return false if queue is NULL or empty.
- * If sp is non-NULL and an element is removed, copy the removed string to *sp
- * (up to a maximum of bufsize-1 characters, plus a null terminator.)
+ * If sp is non-NULL and an element is removed, copy the removed string to
+ * *sp (up to a maximum of bufsize-1 characters, plus a null terminator.)
  * The space used by the list element and the string should be freed.
  */
 bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
 {
+    if (!q || !q->size)
+        return false;
     if (sp) {
         strncpy(sp, q->head->value, bufsize);
+        int len = strlen(sp);
+        sp[len < bufsize ? len : bufsize - 1] = '\0';
     }
+    list_ele_t *tmp = q->head;
     q->head = q->head->next;
+    free_node(tmp);
+
     --(q->size);
     return true;
 }
@@ -130,62 +149,36 @@ int q_size(queue_t *q)
  */
 void q_reverse(queue_t *q)
 {
-    if (!q)
+    if (!q || q->size < 2)
         return;
 
-    char *values[q->size];
-    int i = 0;
-    for (list_ele_t *cur = q->head; cur; cur = cur->next) {
-        values[i++] = cur->value;
+    list_ele_t *new = q->head;
+    list_ele_t *old = q->head->next;
+    for (list_ele_t *tmp = old->next; old; tmp = old->next) {
+        old->next = new;
+        new = old;
+        old = tmp;
+
+        /* this if statement is needed,
+         * although the for should do it.
+         * I DONT KNOW WHY
+         */
+        if (!old)
+            break;
     }
-    i = q->size - 1;
-    for (list_ele_t *cur = q->head; cur; cur = cur->next) {
-        cur->value = values[i--];
-    }
+
+    q->tail = q->head;
+    q->head = new;
+    q->tail->next = NULL;
 }
 
-void quicksort(char **v, int lo, int hi)
-{
-    if (lo >= hi)
-        return;
-
-    /* partition */
-    int pivot = rand() % (hi - lo + 1) + lo;
-    char *tmp = v[pivot];
-    v[pivot] = v[hi];
-    v[hi] = tmp;
-
-    int i = lo;
-    for (int j = lo; j < hi; ++j) {
-        if (strcmp(v[j], v[hi]) > 0) {
-            tmp = v[j];
-            v[j] = v[i];
-            v[i++] = tmp;
-        }
-    }
-    return quicksort(v, lo, i - 1), quicksort(v, i, hi);
-}
 
 /*
  * Sort elements of queue in ascending order
  * No effect if q is NULL or empty. In addition, if q has only one
  * element, do nothing.
- * Merge Sort
  */
 void q_sort(queue_t *q)
 {
-    if (!q)
-        return;
-
-    char *values[q->size];
-    int i = 0;
-    for (list_ele_t *cur = q->head; cur; cur = cur->next) {
-        values[i++] = cur->value;
-    }
-
-    quicksort(values, 0, q->size - 1);
-    i = 0;
-    for (list_ele_t *cur = q->head; cur; cur = cur->next) {
-        cur->value = values[i++];
-    }
+    /* TODO */
 }
