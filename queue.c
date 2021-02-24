@@ -172,6 +172,35 @@ void q_reverse(queue_t *q)
     q->tail->next = NULL;
 }
 
+void quicksort(list_ele_t *h, list_ele_t *t)
+{
+    if (h == t)
+        return;
+    /* rear is head of the back part
+     * fr_t is tail of the front part
+     */
+    list_ele_t *rear, *frnt;
+    rear = frnt = h;
+    char *tmp;
+    for (list_ele_t *cur = h; cur != t; cur = cur->next) {
+        if (strcmp(cur->value, t->value) < 0) {
+            /* swap */
+            tmp = rear->value;
+            rear->value = cur->value;
+            cur->value = tmp;
+
+            frnt = rear;
+            rear = rear->next;
+        }
+    }
+    tmp = rear->value;
+    rear->value = t->value;
+    t->value = tmp;
+
+    if (rear == t)
+        return quicksort(h, frnt);
+    return quicksort(h, frnt), quicksort(rear->next, t);
+}
 
 /*
  * Sort elements of queue in ascending order
@@ -180,5 +209,7 @@ void q_reverse(queue_t *q)
  */
 void q_sort(queue_t *q)
 {
-    /* TODO */
+    if (!q || q->size < 2)
+        return;
+    quicksort(q->head, q->tail);
 }
