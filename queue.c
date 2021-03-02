@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "harness.h"
 #include "queue.h"
@@ -154,15 +155,10 @@ void q_reverse(queue_t *q)
 
     list_ele_t *new = q->head;
     list_ele_t *old = q->head->next;
-    for (list_ele_t *tmp = old->next; old; tmp = old->next) {
+    for (list_ele_t *tmp = old->next;; tmp = old->next) {
         old->next = new;
         new = old;
         old = tmp;
-
-        /* this if statement is needed,
-         * although the for should do it.
-         * I DONT KNOW WHY
-         */
         if (!old)
             break;
     }
@@ -172,34 +168,83 @@ void q_reverse(queue_t *q)
     q->tail->next = NULL;
 }
 
-void quicksort(list_ele_t *h, list_ele_t *t)
+/*
+#ifdef DEBUG
+void print_list()
 {
-    if (h == t)
-        return;
-    /* rear is head of the back part
-     * fr_t is tail of the front part
-     */
-    list_ele_t *rear, *frnt;
-    rear = frnt = h;
-    char *tmp;
-    for (list_ele_t *cur = h; cur != t; cur = cur->next) {
-        if (strcmp(cur->value, t->value) < 0) {
-            /* swap */
-            tmp = rear->value;
-            rear->value = cur->value;
-            cur->value = tmp;
-
-            frnt = rear;
-            rear = rear->next;
-        }
+    for (list_ele_t *cur = head;; cur = cur->next) {
+        printf("%s ", cur->value);
+        if (cur == tail)
+            break;
     }
-    tmp = rear->value;
-    rear->value = t->value;
-    t->value = tmp;
+    printf("\n----------------------------------------------------\n");
+}
+#endif
+*/
 
-    if (rear == t)
-        return quicksort(h, frnt);
-    return quicksort(h, frnt), quicksort(rear->next, t);
+/*
+ * return tail of the sorted list,
+ * and tail->next = head
+ */
+list_ele_t *quicksort(list_ele_t *head, list_ele_t *tail)
+{
+    srand(time(NULL));
+    if (rand() & 1) {
+        char *tmp = head->value;
+        head->value = tail->value;
+        tail->value = tmp;
+    }
+
+    /* partition into sm, eq, lg */
+    list_ele_t *sm, *eq, *lg, *sm_t, *eq_t, *lg_t, *tmp;
+    sm = eq = lg = sm_t = eq_t = lg_t = NULL;
+    for (list_ele_t *cur = head; cur != tail;) {
+        int diff = strcmp(cur->value, tail->value);
+        tmp = cur->next;
+        if (diff < 0) {
+            if (!sm_t)
+                sm_t = cur;
+            cur->next = sm;
+            sm = cur;
+        } else if (!diff) {
+            if (!eq_t)
+                eq_t = cur;
+            cur->next = eq;
+            eq = cur;
+        } else {
+            if (!lg_t)
+                lg_t = cur;
+            cur->next = lg;
+            lg = cur;
+        }
+        cur = tmp;
+        if (cur == tail)
+            break;
+    }
+    tail->next = eq;
+    eq = tail;
+    if (!eq_t)
+        eq_t = eq;
+
+    /* sort lg and sm, then put them back together */
+    if (lg) {
+        tail = quicksort(lg, lg_t);
+        eq_t->next = tail->next;
+        tail->next = NULL;
+    } else {
+        tail = eq_t;
+    }
+
+    if (sm) {
+        tmp = quicksort(sm, sm_t);
+        head = tmp->next;
+        tmp->next = eq;
+    } else {
+        head = eq;
+    }
+
+    tail->next = head;
+    return tail;
 }
 
 /*
@@ -211,5 +256,7 @@ void q_sort(queue_t *q)
 {
     if (!q || q->size < 2)
         return;
-    quicksort(q->head, q->tail);
+    q->tail = quicksort(q->head, q->tail);
+    q->head = q->tail->next;
+    q->tail->next = NULL;
 }
