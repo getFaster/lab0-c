@@ -183,69 +183,57 @@ void print_list()
 */
 
 /*
- * return tail of the sorted list,
- * and tail->next = head
+ * navie mergesort
+ * return head pointer and set tail pointer in **t
+ * the list will end with NULL
  */
-list_ele_t *quicksort(list_ele_t *head, list_ele_t *tail)
+list_ele_t *mergesort(list_ele_t *h, list_ele_t **t, int size)
 {
-    srand(time(NULL));
-    if (rand() & 1) {
-        char *tmp = head->value;
-        head->value = tail->value;
-        tail->value = tmp;
+    if (size == 1) {
+        h->next = NULL;
+        *t = h;
+        return h;
     }
 
-    /* partition into sm, eq, lg */
-    list_ele_t *sm, *eq, *lg, *sm_t, *eq_t, *lg_t, *tmp;
-    sm = eq = lg = sm_t = eq_t = lg_t = NULL;
-    for (list_ele_t *cur = head; cur != tail;) {
-        int diff = strcmp(cur->value, tail->value);
-        tmp = cur->next;
-        if (diff < 0) {
-            if (!sm_t)
-                sm_t = cur;
-            cur->next = sm;
-            sm = cur;
-        } else if (!diff) {
-            if (!eq_t)
-                eq_t = cur;
-            cur->next = eq;
-            eq = cur;
+    /* devide into half and sort them */
+    list_ele_t *mid = h;
+    for (int i = 0; i < size / 2; ++i)
+        mid = mid->next;
+
+    h = mergesort(h, t, size / 2);
+
+    list_ele_t *t_cand;
+    mid = mergesort(mid, &t_cand, size / 2 + (size & 1));
+
+    /* merge now */
+    list_ele_t *new, *new_t;
+    if (strcmp(h->value, mid->value) <= 0) {
+        new = new_t = h;
+        h = h->next;
+    } else {
+        new = new_t = mid;
+        mid = mid->next;
+    }
+    while (h && mid) {
+        if (strcmp(h->value, mid->value) <= 0) {
+            new_t->next = h;
+            new_t = h;
+            h = h->next;
         } else {
-            if (!lg_t)
-                lg_t = cur;
-            cur->next = lg;
-            lg = cur;
+            new_t->next = mid;
+            new_t = mid;
+            mid = mid->next;
         }
-        cur = tmp;
-        if (cur == tail)
-            break;
     }
-    tail->next = eq;
-    eq = tail;
-    if (!eq_t)
-        eq_t = eq;
-
-    /* sort lg and sm, then put them back together */
-    if (lg) {
-        tail = quicksort(lg, lg_t);
-        eq_t->next = tail->next;
-        tail->next = NULL;
+    if (!h) {
+        new_t->next = mid;
+        *t = t_cand;
     } else {
-        tail = eq_t;
+        new_t->next = h;
     }
-
-    if (sm) {
-        tmp = quicksort(sm, sm_t);
-        head = tmp->next;
-        tmp->next = eq;
-    } else {
-        head = eq;
-    }
-
-    tail->next = head;
-    return tail;
+    return new;
 }
+
 
 /*
  * Sort elements of queue in ascending order
@@ -256,7 +244,5 @@ void q_sort(queue_t *q)
 {
     if (!q || q->size < 2)
         return;
-    q->tail = quicksort(q->head, q->tail);
-    q->head = q->tail->next;
-    q->tail->next = NULL;
+    q->head = mergesort(q->head, &(q->tail), q->size);
 }
